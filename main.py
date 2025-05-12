@@ -2,7 +2,7 @@ import sys
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                             QPushButton, QLabel, QLineEdit, QMessageBox, QDialog, QFormLayout, QTextEdit, QListWidget, QInputDialog, QStackedWidget, QComboBox, QSizePolicy)
 from PyQt6.QtCore import Qt, QTimer, QDateTime
-from PyQt6.QtGui import QFont, QPalette, QLinearGradient, QColor, QBrush
+from PyQt6.QtGui import QFont, QPalette, QLinearGradient, QColor, QBrush, QPixmap
 import sqlite3
 import hashlib
 
@@ -10,33 +10,108 @@ import hashlib
 class AuthWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Вход / Регистрация")
-        self.setGeometry(300, 300, 350, 200)
-        layout = QVBoxLayout()
-
+        self.setWindowTitle("Авторизация")
+        self.setMinimumSize(1200, 800)
+        self.setStyleSheet("background: transparent;")
+        # Фоновое изображение
+        self.bg_label = QLabel(self)
+        self.bg_label.setPixmap(QPixmap("map_site.jpg"))
+        self.bg_label.setScaledContents(True)
+        self.bg_label.setGeometry(0, 0, self.width(), self.height())
+        self.bg_label.lower()
+        # Основной вертикальный слой
+        main_vlayout = QVBoxLayout(self)
+        main_vlayout.setContentsMargins(0, 0, 0, 0)
+        main_vlayout.setSpacing(0)
+        # Header
+        header = QLabel("<b>ЭЛЕКТРОННОЕ ГОЛОСОВАНИЕ</b>")
+        header.setFont(QFont("Arial", 28, QFont.Weight.Bold))
+        header.setStyleSheet("color: #fff; background: rgba(0,0,0,0.35); padding: 24px 0; text-align: center;")
+        header.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_vlayout.addWidget(header)
+        # Центральная часть (карточка по центру)
+        center_widget = QWidget()
+        center_layout = QHBoxLayout(center_widget)
+        center_layout.setContentsMargins(0, 0, 0, 0)
+        center_layout.setSpacing(0)
+        center_layout.addStretch(1)
+        # Белая карточка
+        card = QWidget()
+        card.setStyleSheet("background: white; border-radius: 24px;")
+        card.setFixedWidth(480)
+        card.setFixedHeight(560)
+        card_layout = QVBoxLayout(card)
+        card_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        card_layout.setContentsMargins(36, 36, 36, 36)
+        card_layout.setSpacing(18)
+        # Заголовок
+        title = QLabel("Авторизация")
+        title.setFont(QFont("Arial", 28, QFont.Weight.Bold))
+        title.setStyleSheet("color: #222;")
+        card_layout.addWidget(title)
+        # Описание
+        desc = QLabel("Пожалуйста, введите свои данные для входа или регистрации:")
+        desc.setFont(QFont("Arial", 15))
+        desc.setStyleSheet("color: #444;")
+        desc.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        card_layout.addWidget(desc)
+        # Поля с подписями
+        login_label = QLabel("Логин:")
+        login_label.setFont(QFont("Arial", 13, QFont.Weight.Bold))
+        card_layout.addWidget(login_label)
         self.username_input = QLineEdit()
+        self.username_input.setPlaceholderText("Введите логин")
+        self.username_input.setMinimumHeight(40)
+        self.username_input.setFont(QFont("Arial", 15))
+        card_layout.addWidget(self.username_input)
+        password_label = QLabel("Пароль:")
+        password_label.setFont(QFont("Arial", 13, QFont.Weight.Bold))
+        card_layout.addWidget(password_label)
         self.password_input = QLineEdit()
+        self.password_input.setPlaceholderText("Введите пароль")
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.admin_code_input = QLineEdit()  # Поле для кода админа
-
-        form = QFormLayout()
-        form.addRow("Логин:", self.username_input)
-        form.addRow("Пароль:", self.password_input)
-        form.addRow("Код админа (если есть):", self.admin_code_input)  # Добавляем поле для кода админа
-        layout.addLayout(form)
-
+        self.password_input.setMinimumHeight(40)
+        self.password_input.setFont(QFont("Arial", 15))
+        card_layout.addWidget(self.password_input)
+        admin_label = QLabel("Код администратора (если есть):")
+        admin_label.setFont(QFont("Arial", 13, QFont.Weight.Bold))
+        card_layout.addWidget(admin_label)
+        self.admin_code_input = QLineEdit()
+        self.admin_code_input.setPlaceholderText("Оставьте пустым, если не админ")
+        self.admin_code_input.setMinimumHeight(40)
+        self.admin_code_input.setFont(QFont("Arial", 15))
+        card_layout.addWidget(self.admin_code_input)
+        # Кнопки
         btn_layout = QHBoxLayout()
         self.login_btn = QPushButton("Войти")
+        self.login_btn.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        self.login_btn.setMinimumHeight(44)
+        self.login_btn.setStyleSheet("background: #1976d2; color: #fff; border-radius: 8px;")
         self.register_btn = QPushButton("Зарегистрироваться")
+        self.register_btn.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        self.register_btn.setMinimumHeight(44)
+        self.register_btn.setStyleSheet("background: #43a047; color: #fff; border-radius: 8px;")
         btn_layout.addWidget(self.login_btn)
         btn_layout.addWidget(self.register_btn)
-        layout.addLayout(btn_layout)
-
-        self.setLayout(layout)
-
+        card_layout.addLayout(btn_layout)
+        center_layout.addWidget(card, alignment=Qt.AlignmentFlag.AlignVCenter)
+        center_layout.addStretch(1)
+        main_vlayout.addWidget(center_widget, stretch=1)
+        # Footer
+        footer = QLabel("© 2025 Онлайн-голосование. Все права защищены.")
+        footer.setFont(QFont("Arial", 14))
+        footer.setStyleSheet("color: #fff; background: rgba(0,0,0,0.35); padding: 18px 0; text-align: center;")
+        footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_vlayout.addWidget(footer)
+        # Сигналы
         self.login_btn.clicked.connect(self.login)
         self.register_btn.clicked.connect(self.register)
         self.user_id = None
+
+    def resizeEvent(self, event):
+        if hasattr(self, 'bg_label') and self.bg_label:
+            self.bg_label.setGeometry(0, 0, self.width(), self.height())
+        super().resizeEvent(event)
 
     def hash_password(self, password):
         return hashlib.sha256(password.encode('utf-8')).hexdigest()
