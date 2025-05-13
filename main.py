@@ -1,6 +1,6 @@
 import sys
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                            QPushButton, QLabel, QLineEdit, QMessageBox, QDialog, QFormLayout, QTextEdit, QListWidget, QInputDialog, QStackedWidget, QComboBox, QSizePolicy)
+                            QPushButton, QLabel, QLineEdit, QMessageBox, QDialog, QFormLayout, QTextEdit, QListWidget, QInputDialog, QStackedWidget, QComboBox, QSizePolicy, QToolTip, QTableWidget, QTableWidgetItem)
 from PyQt6.QtCore import Qt, QTimer, QDateTime
 from PyQt6.QtGui import QFont, QPalette, QLinearGradient, QColor, QBrush, QPixmap
 import sqlite3
@@ -12,102 +12,171 @@ class AuthWindow(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Авторизация")
         self.setMinimumSize(1200, 800)
-        self.setStyleSheet("background: transparent;")
-        # Фоновое изображение
-        self.bg_label = QLabel(self)
-        self.bg_label.setPixmap(QPixmap("map_site.jpg"))
-        self.bg_label.setScaledContents(True)
-        self.bg_label.setGeometry(0, 0, self.width(), self.height())
-        self.bg_label.lower()
-        # Основной вертикальный слой
+        self.setStyleSheet("background: #eaf6fa;")
+        # Фоновый слой (светлый)
         main_vlayout = QVBoxLayout(self)
         main_vlayout.setContentsMargins(0, 0, 0, 0)
         main_vlayout.setSpacing(0)
-        # Header
-        header = QLabel("<b>ЭЛЕКТРОННОЕ ГОЛОСОВАНИЕ</b>")
-        header.setFont(QFont("Arial", 28, QFont.Weight.Bold))
-        header.setStyleSheet("color: #fff; background: rgba(0,0,0,0.35); padding: 24px 0; text-align: center;")
-        header.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_vlayout.addWidget(header)
-        # Центральная часть (карточка по центру)
-        center_widget = QWidget()
-        center_layout = QHBoxLayout(center_widget)
-        center_layout.setContentsMargins(0, 0, 0, 0)
-        center_layout.setSpacing(0)
-        center_layout.addStretch(1)
-        # Белая карточка
+        main_vlayout.addStretch(1)
+        # Центрируем карточку
+        center_h = QHBoxLayout()
+        center_h.addStretch(1)
+        # Карточка
         card = QWidget()
-        card.setStyleSheet("background: white; border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.12);")
-        card.setFixedWidth(680)
-        card.setFixedHeight(600)
+        card.setFixedWidth(420)
+        card.setStyleSheet("""
+            QWidget {
+                background: #fff;
+                border-radius: 28px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.10);
+            }
+        """)
         card_layout = QVBoxLayout(card)
-        card_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        card_layout.setContentsMargins(48, 48, 48, 48)
-        card_layout.setSpacing(22)
+        card_layout.setContentsMargins(36, 36, 36, 36)
+        card_layout.setSpacing(18)
+        # Иконка сверху (если нужна)
+        icon_label = QLabel()
+        icon_pix = QPixmap(32, 32)
+        icon_pix.fill(Qt.GlobalColor.transparent)
+        icon_label.setPixmap(QPixmap(":/qt-project.org/styles/commonstyle/images/dirclosed-128.png").scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        card_layout.addWidget(icon_label)
         # Заголовок
-        title = QLabel("Авторизация")
-        title.setFont(QFont("Arial", 28, QFont.Weight.Bold))
-        title.setStyleSheet("color: #222;")
+        title = QLabel("Вход в систему")
+        title.setFont(QFont("Arial", 22, QFont.Weight.Bold))
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(title)
-        # Описание (многострочный текст)
-        desc = QLabel("Пожалуйста, введите свои данные для входа или регистрации.\n\nЛогин — ваш уникальный идентификатор.\nПароль — только для вас.\nКод администратора — только если вы админ (иначе оставьте пустым).")
-        desc.setFont(QFont("Arial", 15))
-        desc.setStyleSheet("color: #444; margin-bottom: 10px;")
-        desc.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        desc.setWordWrap(True)
-        card_layout.addWidget(desc)
-        # Поля с подписями и placeholderText
-        login_label = QLabel("Логин:")
-        login_label.setFont(QFont("Arial", 13, QFont.Weight.Bold))
-        card_layout.addWidget(login_label)
+        # Форма
+        form = QVBoxLayout()
+        form.setSpacing(12)
+        # --- Логин ---
+        login_box = QVBoxLayout()
+        login_label = QLabel("Имя пользователя")
+        login_label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+        login_box.addWidget(login_label)
+        login_field_layout = QHBoxLayout()
+        login_icon = QLabel()
+        login_icon.setPixmap(QPixmap(":/qt-project.org/styles/commonstyle/images/standardbutton-apply-32.png").scaled(20, 20, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        login_icon.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        login_icon.setToolTip("Только буквы, цифры и символы @/./+/-/_")
+        login_field_layout.addWidget(login_icon)
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Например: ivanov123")
-        self.username_input.setMinimumHeight(48)
-        self.username_input.setFont(QFont("Arial", 16))
-        self.username_input.setStyleSheet("QLineEdit { padding-left: 12px; } QLineEdit::placeholder { color: #888; font-size: 15px; }")
-        card_layout.addWidget(self.username_input)
-        password_label = QLabel("Пароль:")
-        password_label.setFont(QFont("Arial", 13, QFont.Weight.Bold))
-        card_layout.addWidget(password_label)
+        self.username_input.setPlaceholderText("Введите логин")
+        self.username_input.setMinimumHeight(40)
+        self.username_input.setFont(QFont("Arial", 14))
+        self.username_input.setStyleSheet("""
+            QLineEdit {
+                border: 2px solid #b6e0fe;
+                border-radius: 10px;
+                padding-left: 8px;
+                background: #fafdff;
+                color: #222;
+            }
+            QLineEdit:focus {
+                border: 2px solid #4fc3f7;
+                background: #f0faff;
+            }
+        """)
+        login_field_layout.addWidget(self.username_input)
+        login_box.addLayout(login_field_layout)
+        form.addLayout(login_box)
+        # --- Пароль ---
+        pass_box = QVBoxLayout()
+        pass_label = QLabel("Пароль")
+        pass_label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+        pass_box.addWidget(pass_label)
+        pass_field_layout = QHBoxLayout()
+        pass_icon = QLabel()
+        pass_icon.setPixmap(QPixmap(":/qt-project.org/styles/commonstyle/images/standardbutton-cancel-32.png").scaled(20, 20, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        pass_icon.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        pass_icon.setToolTip("Минимум 8 символов. Не используйте слишком простой пароль.")
+        pass_field_layout.addWidget(pass_icon)
         self.password_input = QLineEdit()
-        self.password_input.setPlaceholderText("Введите ваш пароль")
+        self.password_input.setPlaceholderText("Введите пароль")
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.password_input.setMinimumHeight(48)
-        self.password_input.setFont(QFont("Arial", 16))
-        self.password_input.setStyleSheet("QLineEdit { padding-left: 12px; } QLineEdit::placeholder { color: #888; font-size: 15px; }")
-        card_layout.addWidget(self.password_input)
-        admin_label = QLabel("Код администратора (если есть):")
-        admin_label.setFont(QFont("Arial", 13, QFont.Weight.Bold))
-        card_layout.addWidget(admin_label)
+        self.password_input.setMinimumHeight(40)
+        self.password_input.setFont(QFont("Arial", 14))
+        self.password_input.setStyleSheet("""
+            QLineEdit {
+                border: 2px solid #b6e0fe;
+                border-radius: 10px;
+                padding-left: 8px;
+                background: #fafdff;
+                color: #222;
+            }
+            QLineEdit:focus {
+                border: 2px solid #4fc3f7;
+                background: #f0faff;
+            }
+        """)
+        pass_field_layout.addWidget(self.password_input)
+        pass_box.addLayout(pass_field_layout)
+        form.addLayout(pass_box)
+        # --- Код администратора ---
+        admin_box = QVBoxLayout()
+        admin_label = QLabel("Код администратора (если есть)")
+        admin_label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+        admin_box.addWidget(admin_label)
         self.admin_code_input = QLineEdit()
         self.admin_code_input.setPlaceholderText("Оставьте пустым, если не админ")
-        self.admin_code_input.setMinimumHeight(48)
-        self.admin_code_input.setFont(QFont("Arial", 16))
-        self.admin_code_input.setStyleSheet("QLineEdit { padding-left: 12px; } QLineEdit::placeholder { color: #888; font-size: 15px; }")
-        card_layout.addWidget(self.admin_code_input)
-        # Кнопки
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(18)
+        self.admin_code_input.setMinimumHeight(40)
+        self.admin_code_input.setFont(QFont("Arial", 14))
+        self.admin_code_input.setStyleSheet("""
+            QLineEdit {
+                border: 2px solid #b6e0fe;
+                border-radius: 10px;
+                padding-left: 8px;
+                background: #fafdff;
+                color: #222;
+            }
+            QLineEdit:focus {
+                border: 2px solid #4fc3f7;
+                background: #f0faff;
+            }
+        """)
+        admin_box.addWidget(self.admin_code_input)
+        form.addLayout(admin_box)
+        card_layout.addLayout(form)
+        # Кнопка
+        card_layout.addSpacing(10)
         self.login_btn = QPushButton("Войти")
-        self.login_btn.setFont(QFont("Arial", 17, QFont.Weight.Bold))
-        self.login_btn.setMinimumHeight(52)
-        self.login_btn.setStyleSheet("background: #1976d2; color: #fff; border-radius: 10px;")
+        self.login_btn.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        self.login_btn.setMinimumHeight(48)
+        self.login_btn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4fc3f7, stop:1 #1976d2);
+                color: white;
+                border-radius: 12px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1976d2, stop:1 #4fc3f7);
+            }
+        """)
         self.register_btn = QPushButton("Зарегистрироваться")
-        self.register_btn.setFont(QFont("Arial", 17, QFont.Weight.Bold))
-        self.register_btn.setMinimumHeight(52)
-        self.register_btn.setStyleSheet("background: #43a047; color: #fff; border-radius: 10px;")
-        btn_layout.addWidget(self.login_btn)
-        btn_layout.addWidget(self.register_btn)
-        card_layout.addLayout(btn_layout)
-        center_layout.addWidget(card, alignment=Qt.AlignmentFlag.AlignVCenter)
-        center_layout.addStretch(1)
-        main_vlayout.addWidget(center_widget, stretch=1)
-        # Footer
-        footer = QLabel("© 2025 Онлайн-голосование. Все права защищены.")
-        footer.setFont(QFont("Arial", 14))
-        footer.setStyleSheet("color: #fff; background: rgba(0,0,0,0.35); padding: 18px 0; text-align: center;")
-        footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_vlayout.addWidget(footer)
+        self.register_btn.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        self.register_btn.setMinimumHeight(48)
+        self.register_btn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #43e97b, stop:1 #38f9d7);
+                color: #222;
+                border-radius: 12px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #38f9d7, stop:1 #43e97b);
+            }
+        """)
+        card_layout.addWidget(self.login_btn)
+        card_layout.addWidget(self.register_btn)
+        # Сообщение об авторских правах
+        copyright = QLabel("© 2025 Онлайн-голосование")
+        copyright.setFont(QFont("Arial", 10))
+        copyright.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        copyright.setStyleSheet("color: #b0b0b0; margin-top: 10px;")
+        card_layout.addWidget(copyright)
+        center_h.addWidget(card)
+        center_h.addStretch(1)
+        main_vlayout.addLayout(center_h)
+        main_vlayout.addStretch(1)
         # Сигналы
         self.login_btn.clicked.connect(self.login)
         self.register_btn.clicked.connect(self.register)
@@ -125,7 +194,7 @@ class AuthWindow(QDialog):
         username = self.username_input.text().strip()
         password = self.password_input.text()
         if not username or not password:
-            QMessageBox.warning(self, "Ошибка", "Введите логин и пароль")
+            show_pretty_message(self, "Ошибка", "Введите логин и пароль", QMessageBox.Icon.Warning)
             return
         conn = sqlite3.connect('voting.db')
         cursor = conn.cursor()
@@ -136,20 +205,20 @@ class AuthWindow(QDialog):
             self.user_id = row[0]
             self.accept()
         else:
-            QMessageBox.warning(self, "Ошибка", "Неверный логин или пароль")
+            show_pretty_message(self, "Ошибка", "Неверный логин или пароль")
 
     def register(self):
         username = self.username_input.text().strip()
         password = self.password_input.text()
         admin_code = self.admin_code_input.text().strip()  # Получаем код админа
         if not username or not password:
-            QMessageBox.warning(self, "Ошибка", "Введите логин и пароль")
+            show_pretty_message(self, "Ошибка", "Введите логин и пароль", QMessageBox.Icon.Warning)
             return
         conn = sqlite3.connect('voting.db')
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM users WHERE username=?", (username,))
         if cursor.fetchone():
-            QMessageBox.warning(self, "Ошибка", "Пользователь с таким логином уже существует")
+            show_pretty_message(self, "Ошибка", "Пользователь с таким логином уже существует")
             conn.close()
             return
         password_hash = self.hash_password(password)
@@ -157,7 +226,7 @@ class AuthWindow(QDialog):
         cursor.execute("INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)", (username, password_hash, is_admin))
         conn.commit()
         conn.close()
-        QMessageBox.information(self, "Успех", "Пользователь зарегистрирован! Теперь войдите.")
+        show_pretty_message(self, "Успех", "Пользователь зарегистрирован! Теперь войдите.")
 
 class CreateVoteWindow(QDialog):
     def __init__(self, parent=None):
@@ -216,11 +285,11 @@ class CreateVoteWindow(QDialog):
         options = [self.options_list.item(i).text() for i in range(self.options_list.count())]
         
         if not title:
-            QMessageBox.warning(self, "Ошибка", "Введите название голосования")
+            show_pretty_message(self, "Ошибка", "Введите название голосования")
             return
         
         if not options:
-            QMessageBox.warning(self, "Ошибка", "Добавьте хотя бы один вариант ответа")
+            show_pretty_message(self, "Ошибка", "Добавьте хотя бы один вариант ответа")
             return
         
         try:
@@ -243,11 +312,11 @@ class CreateVoteWindow(QDialog):
                 ''', (vote_id, option))
             
             conn.commit()
-            QMessageBox.information(self, "Успех", "Голосование успешно создано!")
+            show_pretty_message(self, "Успех", "Голосование успешно создано!")
             self.accept()
             
         except sqlite3.Error as e:
-            QMessageBox.critical(self, "Ошибка", f"Ошибка при сохранении: {str(e)}")
+            show_pretty_message(self, "Ошибка", f"Ошибка при сохранении: {str(e)}")
         finally:
             conn.close()
 
@@ -328,7 +397,7 @@ class ViewVotesWindow(QDialog):
     def vote(self):
         item = self.votes_list.currentItem()
         if not item:
-            QMessageBox.warning(self, "Ошибка", "Выберите голосование")
+            show_pretty_message(self, "Ошибка", "Выберите голосование")
             return
         vote_id = int(item.text().split(':')[0])
         # Проверяем, голосовал ли уже пользователь
@@ -336,7 +405,7 @@ class ViewVotesWindow(QDialog):
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM votes_log WHERE user_id=? AND vote_id=?", (self.user_id, vote_id))
         if cursor.fetchone():
-            QMessageBox.information(self, "Информация", "Вы уже голосовали в этом голосовании")
+            show_pretty_message(self, "Информация", "Вы уже голосовали в этом голосовании")
             conn.close()
             return
         # Открываем окно голосования
@@ -347,21 +416,46 @@ class ViewVotesWindow(QDialog):
                 cursor.execute("INSERT INTO votes_log (user_id, vote_id, option_id) VALUES (?, ?, ?)", (self.user_id, vote_id, dlg.selected_option_id))
                 cursor.execute("UPDATE options SET votes_count = votes_count + 1 WHERE id=?", (dlg.selected_option_id,))
                 conn.commit()
-                QMessageBox.information(self, "Успех", "Ваш голос учтён!")
+                show_pretty_message(self, "Успех", "Ваш голос учтён!")
             except sqlite3.IntegrityError:
-                QMessageBox.warning(self, "Ошибка", "Вы уже голосовали в этом голосовании")
+                show_pretty_message(self, "Ошибка", "Вы уже голосовали в этом голосовании")
             finally:
                 conn.close()
     def show_results(self):
         item = self.votes_list.currentItem()
         if not item:
-            QMessageBox.warning(self, "Ошибка", "Выберите голосование")
+            show_pretty_message(self, "Ошибка", "Выберите голосование")
             return
         vote_id = int(item.text().split(':')[0])
         dlg = ResultsDialog(vote_id, self)
         dlg.exec()
 
 # --- Окно админ-панели ---
+class UsersTableDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Пользователи")
+        self.setMinimumSize(500, 400)
+        layout = QVBoxLayout(self)
+        self.table = QTableWidget()
+        self.table.setColumnCount(3)
+        self.table.setHorizontalHeaderLabels(["ID", "Логин", "Админ"])
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        layout.addWidget(self.table)
+        self.load_users()
+    def load_users(self):
+        conn = sqlite3.connect('voting.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, username, is_admin FROM users")
+        users = cursor.fetchall()
+        self.table.setRowCount(len(users))
+        for row, (uid, username, is_admin) in enumerate(users):
+            self.table.setItem(row, 0, QTableWidgetItem(str(uid)))
+            self.table.setItem(row, 1, QTableWidgetItem(username))
+            self.table.setItem(row, 2, QTableWidgetItem("Да" if is_admin else "Нет"))
+        conn.close()
+
 class AdminPanel(QDialog):
     def __init__(self, user_id, parent=None):
         super().__init__(parent)
@@ -374,6 +468,10 @@ class AdminPanel(QDialog):
         delete_btn = QPushButton("Удалить голосование")
         delete_btn.clicked.connect(self.delete_vote)
         layout.addWidget(delete_btn)
+        # Кнопка пользователей
+        users_btn = QPushButton("Пользователи")
+        users_btn.clicked.connect(self.show_users)
+        layout.addWidget(users_btn)
         self.setLayout(layout)
     def load_votes(self):
         self.votes_list.clear()
@@ -386,7 +484,7 @@ class AdminPanel(QDialog):
     def delete_vote(self):
         item = self.votes_list.currentItem()
         if not item:
-            QMessageBox.warning(self, "Ошибка", "Выберите голосование")
+            show_pretty_message(self, "Ошибка", "Выберите голосование")
             return
         vote_id = int(item.text().split(':')[0])
         reply = QMessageBox.question(self, "Подтверждение", "Удалить это голосование?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
@@ -399,7 +497,10 @@ class AdminPanel(QDialog):
             conn.commit()
             conn.close()
             self.load_votes()
-            QMessageBox.information(self, "Успех", "Голосование удалено!")
+            show_pretty_message(self, "Успех", "Голосование удалено!")
+    def show_users(self):
+        dlg = UsersTableDialog(self)
+        dlg.exec()
 
 class MainPage(QWidget):
     def __init__(self, parent, user_id, is_admin):
@@ -521,7 +622,7 @@ def init_database():
     cursor = conn.cursor()
     print("Инициализация базы данных...")
     # --- Удаляем старую таблицу users ---
-    cursor.execute("DROP TABLE IF EXISTS users")
+    # cursor.execute("DROP TABLE IF EXISTS users")  # УДАЛЕНО, чтобы не стирать пользователей
     # --- Новая таблица пользователей ---
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -568,6 +669,34 @@ def init_database():
     conn.close()
     print("База данных инициализирована.")
 
+def show_pretty_message(parent, title, text, icon=QMessageBox.Icon.Warning):
+    msg = QMessageBox(parent)
+    msg.setWindowTitle(title)
+    msg.setText(text)
+    msg.setIcon(icon)
+    msg.setStyleSheet('''
+        QMessageBox {
+            background: #fff;
+            border-radius: 16px;
+        }
+        QLabel {
+            color: #222;
+            font-size: 18px;
+        }
+        QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4fc3f7, stop:1 #1976d2);
+            color: white;
+            border-radius: 10px;
+            min-width: 80px;
+            min-height: 32px;
+            font-size: 16px;
+        }
+        QPushButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1976d2, stop:1 #4fc3f7);
+        }
+    ''')
+    msg.exec()
+
 if __name__ == '__main__':
     init_database()
     app = QApplication(sys.argv)
@@ -609,6 +738,12 @@ if __name__ == '__main__':
             font-size: 20px;
             background-color: #263859;
             color: #fff;
+        }
+        QToolTip {
+            color: #222;
+            background: #fffbe6;
+            border: 1px solid #ffd600;
+            font-size: 13px;
         }
     """)
     auth = AuthWindow()
