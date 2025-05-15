@@ -267,10 +267,15 @@ class CreateVoteWindow(QDialog):
         save_btn = QPushButton("Создать голосование")
         save_btn.clicked.connect(self.save_vote)
         
+        # Кнопка возврата
+        back_btn = QPushButton("Назад")
+        back_btn.clicked.connect(self.go_back)
+        
         # Добавляем все элементы на форму
         layout.addLayout(form_layout)
         layout.addLayout(options_buttons_layout)
         layout.addWidget(save_btn)
+        layout.addWidget(back_btn)
         
         self.setLayout(layout)
     
@@ -325,6 +330,9 @@ class CreateVoteWindow(QDialog):
         finally:
             conn.close()
 
+    def go_back(self):
+        self.close()
+
 # --- Окно для голосования ---
 class VoteDialog(QDialog):
     def __init__(self, user_id, vote_id, parent=None):
@@ -357,21 +365,59 @@ class VoteDialog(QDialog):
 
 # --- Окно просмотра голосований ---
 class ResultsDialog(QDialog):
-    def __init__(self, vote_id, parent=None):
+    def __init__(self, vote_id=None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Результаты голосования")
+        self.setWindowTitle("Результаты голосований")
+        self.setMinimumSize(900, 600)
         layout = QVBoxLayout()
+
+        # Таблица результатов
+        self.table = QTableWidget()
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(["Голосование", "Вариант ответа", "Голосов", "%"])
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)  # Запретить редактирование
+        layout.addWidget(self.table)
+
+        self.load_results()
+
+        # Кнопка возврата
+        btn_back = QPushButton("Назад")
+        btn_back.setMinimumHeight(40)
+        btn_back.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        btn_back.clicked.connect(self.go_back)
+        layout.addWidget(btn_back)
+        self.setLayout(layout)
+
+    def load_results(self):
         conn = sqlite3.connect('voting.db')
         cursor = conn.cursor()
-        cursor.execute("SELECT title FROM votes WHERE id=?", (vote_id,))
-        vote = cursor.fetchone()
-        if vote:
-            layout.addWidget(QLabel(f"<b>{vote[0]}</b>"))
-        cursor.execute("SELECT option_text, votes_count FROM options WHERE vote_id=?", (vote_id,))
-        for opt_text, count in cursor.fetchall():
-            layout.addWidget(QLabel(f"{opt_text}: {count} голос(ов)"))
+        cursor.execute("SELECT id, title FROM votes")
+        votes = cursor.fetchall()
+        rows = []
+        for vote_id, title in votes:
+            cursor.execute("SELECT SUM(votes_count) FROM options WHERE vote_id=?", (vote_id,))
+            total_votes = cursor.fetchone()[0] or 0
+            cursor.execute("SELECT option_text, votes_count FROM options WHERE vote_id=?", (vote_id,))
+            for option_text, votes_count in cursor.fetchall():
+                percent = (votes_count / total_votes * 100) if total_votes > 0 else 0
+                rows.append((title, option_text, votes_count, f"{percent:.1f}%"))
+        self.table.setRowCount(len(rows))
+        for row, (title, option_text, votes_count, percent) in enumerate(rows):
+            self.table.setItem(row, 0, QTableWidgetItem(str(title)))
+            self.table.setItem(row, 1, QTableWidgetItem(str(option_text)))
+            self.table.setItem(row, 2, QTableWidgetItem(str(votes_count)))
+            self.table.setItem(row, 3, QTableWidgetItem(str(percent)))
         conn.close()
-        self.setLayout(layout)
+
+    def go_back(self):
+        self.close()
+        main_window = self.parent()
+        while main_window and not isinstance(main_window, StylishMainWindow):
+            main_window = main_window.parent()
+        if main_window:
+            main_window.set_page("main")
 
 class ViewVotesWindow(QDialog):
     def __init__(self, user_id, parent=None):
@@ -390,6 +436,12 @@ class ViewVotesWindow(QDialog):
         btn_layout.addWidget(vote_btn)
         btn_layout.addWidget(results_btn)
         layout.addLayout(btn_layout)
+        # Кнопка возврата
+        btn_back = QPushButton("Назад")
+        btn_back.setMinimumHeight(40)
+        btn_back.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        btn_back.clicked.connect(self.go_back)
+        layout.addWidget(btn_back)
         # Кнопка выхода
         btn_logout = QPushButton("Выйти")
         btn_logout.setMinimumHeight(40)
@@ -442,8 +494,21 @@ class ViewVotesWindow(QDialog):
         dlg.exec()
     def logout(self):
         self.close()
-        if self.parent():
-            self.parent().logout()
+        # Показать окно авторизации
+        auth = AuthWindow()
+        if auth.exec() == QDialog.DialogCode.Accepted:
+            new_window = StylishMainWindow(user_id=auth.user_id)
+            new_window.showMaximized()
+            QApplication.instance().exec()
+
+    def go_back(self):
+        self.close()
+        # Find the main window and set the page
+        main_window = self.parent()
+        while main_window and not isinstance(main_window, StylishMainWindow):
+            main_window = main_window.parent()
+        if main_window:
+            main_window.set_page("main")
 
 # --- Окно админ-панели ---
 class UsersTableDialog(QDialog):
@@ -506,6 +571,10 @@ class EditVoteWindow(QDialog):
         save_btn = QPushButton("Сохранить изменения")
         save_btn.clicked.connect(self.save_vote)
         
+        # Кнопка возврата
+        back_btn = QPushButton("Назад")
+        back_btn.clicked.connect(self.go_back)
+        
         # Загружаем существующие данные
         self.load_vote_data()
         
@@ -513,6 +582,7 @@ class EditVoteWindow(QDialog):
         layout.addLayout(form_layout)
         layout.addLayout(options_buttons_layout)
         layout.addWidget(save_btn)
+        layout.addWidget(back_btn)
         
         self.setLayout(layout)
     
@@ -586,6 +656,9 @@ class EditVoteWindow(QDialog):
             show_pretty_message(self, "Ошибка", f"Ошибка при сохранении: {str(e)}")
         finally:
             conn.close()
+
+    def go_back(self):
+        self.close()
 
 class VoteStatisticsDialog(QDialog):
     def __init__(self, vote_id, parent=None):
@@ -731,6 +804,13 @@ class AdminPanel(QDialog):
         users_btn.clicked.connect(self.show_enhanced_user_management)
         layout.addWidget(users_btn)
         
+        # Кнопка возврата
+        btn_back = QPushButton("Назад")
+        btn_back.setMinimumHeight(40)
+        btn_back.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        btn_back.clicked.connect(self.go_back)
+        layout.addWidget(btn_back)
+        
         # Кнопка выхода
         btn_logout = QPushButton("Выйти")
         btn_logout.setMinimumHeight(40)
@@ -797,8 +877,21 @@ class AdminPanel(QDialog):
 
     def logout(self):
         self.close()
-        if self.parent():
-            self.parent().logout()
+        # Показать окно авторизации
+        auth = AuthWindow()
+        if auth.exec() == QDialog.DialogCode.Accepted:
+            new_window = StylishMainWindow(user_id=auth.user_id)
+            new_window.showMaximized()
+            QApplication.instance().exec()
+
+    def go_back(self):
+        self.close()
+        # Find the main window and set the page
+        main_window = self.parent()
+        while main_window and not isinstance(main_window, StylishMainWindow):
+            main_window = main_window.parent()
+        if main_window:
+            main_window.set_page("main")
 
 class MainPage(QWidget):
     def __init__(self, parent, user_id, is_admin):
@@ -855,8 +948,8 @@ class MainPage(QWidget):
         self.setLayout(layout)
 
     def start_timer(self):
-        # Пример: до 1 июня 2025 года
-        target = QDateTime.fromString("2025-06-01 00:00:00", "yyyy-MM-dd HH:mm:ss")
+        # Новый дедлайн: 9 июня 2025 года
+        target = QDateTime.fromString("2025-06-09 00:00:00", "yyyy-MM-dd HH:mm:ss")
         self.timer = QTimer(self)
         self.timer.timeout.connect(lambda: self.update_timer(target))
         self.timer.start(1000)
@@ -1028,86 +1121,67 @@ class EnhancedVoteStatisticsDialog(QDialog):
         self.setWindowTitle("Расширенная статистика голосования")
         self.setMinimumSize(800, 600)
         self.vote_id = vote_id
-        
         layout = QVBoxLayout()
-        
-        # Верхняя панель с кнопками
         top_panel = QHBoxLayout()
         export_btn = QPushButton("Экспорт в CSV")
         export_btn.clicked.connect(self.export_to_csv)
         top_panel.addWidget(export_btn)
         layout.addLayout(top_panel)
-        
-        # Таблица статистики
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["Вариант ответа", "Количество голосов", "Процент", "Последнее голосование"])
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        
-        # График
         self.figure = Figure(figsize=(8, 4))
         self.canvas = FigureCanvas(self.figure)
-        
-        # Загружаем статистику
         self.load_statistics()
-        
         layout.addWidget(self.table)
         layout.addWidget(self.canvas)
+        back_btn = QPushButton("Назад")
+        back_btn.clicked.connect(self.go_back)
+        layout.addWidget(back_btn)
         self.setLayout(layout)
-    
     def load_statistics(self):
         conn = sqlite3.connect('voting.db')
         cursor = conn.cursor()
-        
-        # Получаем общее количество голосов
-        cursor.execute("""
-            SELECT SUM(votes_count) 
-            FROM options 
-            WHERE vote_id = ?
-        """, (self.vote_id,))
+        cursor.execute("SELECT SUM(votes_count) FROM options WHERE vote_id = ?", (self.vote_id,))
         total_votes = cursor.fetchone()[0] or 0
-        
-        # Получаем статистику по вариантам с временными метками
         cursor.execute("""
             SELECT o.option_text, o.votes_count, 
-                   (SELECT MAX(vl.timestamp) 
-                    FROM votes_log vl 
-                    WHERE vl.option_id = o.id)
+                   (SELECT MAX(vl.timestamp) FROM votes_log vl WHERE vl.option_id = o.id)
             FROM options o
             WHERE o.vote_id = ?
         """, (self.vote_id,))
-        
         options = cursor.fetchall()
         self.table.setRowCount(len(options))
-        
-        # Данные для графика
         labels = []
         sizes = []
-        
         for row, (option_text, votes, last_vote) in enumerate(options):
             percentage = (votes / total_votes * 100) if total_votes > 0 else 0
-            last_vote_str = last_vote.strftime("%Y-%m-%d %H:%M") if last_vote else "Нет голосов"
-            
+            if last_vote is None:
+                last_vote_str = "Нет голосов"
+            elif isinstance(last_vote, str):
+                last_vote_str = last_vote.split('.')[0]
+            else:
+                last_vote_str = str(last_vote)
             self.table.setItem(row, 0, QTableWidgetItem(option_text))
             self.table.setItem(row, 1, QTableWidgetItem(str(votes)))
             self.table.setItem(row, 2, QTableWidgetItem(f"{percentage:.1f}%"))
             self.table.setItem(row, 3, QTableWidgetItem(last_vote_str))
-            
             labels.append(option_text)
             sizes.append(votes)
-        
-        # Создаем круговую диаграмму
         self.figure.clear()
         ax = self.figure.add_subplot(111)
-        if any(sizes):
-            ax.pie(sizes, labels=labels, autopct='%1.1f%%')
+        filtered_labels = [l for l, s in zip(labels, sizes) if s > 0]
+        filtered_sizes = [s for s in sizes if s > 0]
+        if any(filtered_sizes):
+            wedges, texts, autotexts = ax.pie(filtered_sizes, labels=None, autopct='%1.1f%%')
+            legend = ax.legend(wedges, filtered_labels, title="Варианты", loc="lower center", bbox_to_anchor=(0.5, -0.15), fontsize=10, title_fontsize=11, ncol=2)
             ax.axis('equal')
         else:
             ax.text(0.5, 0.5, 'Нет данных для отображения', ha='center', va='center', fontsize=16)
         self.canvas.draw()
         conn.close()
-    
     def export_to_csv(self):
         file_name, _ = QFileDialog.getSaveFileName(
             self,
@@ -1134,6 +1208,8 @@ class EnhancedVoteStatisticsDialog(QDialog):
                 show_pretty_message(self, "Успех", "Статистика успешно экспортирована!")
             except Exception as e:
                 show_pretty_message(self, "Ошибка", f"Ошибка при экспорте: {str(e)}")
+    def go_back(self):
+        self.close()
 
 class EnhancedUserManagementDialog(QDialog):
     def __init__(self, parent=None):
@@ -1157,30 +1233,42 @@ class EnhancedUserManagementDialog(QDialog):
         self.table.setHorizontalHeaderLabels(["ID", "Логин", "Админ", "Последний вход", "Действия"])
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.verticalHeader().setDefaultSectionSize(36)  # уменьшенная высота строк
+        self.table.setStyleSheet("QTableWidget { font-size: 16px; } QPushButton { min-width: 120px; min-height: 28px; font-size: 14px; }")
         
         # Загружаем пользователей
         self.load_users()
         
         layout.addWidget(self.table)
+        
+        # Кнопка возврата
+        back_btn = QPushButton("Назад")
+        back_btn.clicked.connect(self.go_back)
+        layout.addWidget(back_btn)
+        
         self.setLayout(layout)
     
     def load_users(self):
         conn = sqlite3.connect('voting.db')
         cursor = conn.cursor()
-        cursor.execute("SELECT id, username, is_admin FROM users")
+        cursor.execute("SELECT id, username, is_admin, last_login FROM users")
         users = cursor.fetchall()
         
         self.table.setRowCount(len(users))
-        for row, (uid, username, is_admin) in enumerate(users):
+        for row, (uid, username, is_admin, last_login) in enumerate(users):
             self.table.setItem(row, 0, QTableWidgetItem(str(uid)))
             self.table.setItem(row, 1, QTableWidgetItem(username))
             self.table.setItem(row, 2, QTableWidgetItem("Да" if is_admin else "Нет"))
-            
+            self.table.setItem(row, 3, QTableWidgetItem(last_login if last_login else "—"))
             # Кнопка изменения прав
             toggle_btn = QPushButton("Изменить права")
+            toggle_btn.setMinimumWidth(120)
+            toggle_btn.setMaximumWidth(140)
+            toggle_btn.setMinimumHeight(28)
+            toggle_btn.setStyleSheet("font-size: 14px; padding: 2px 8px;")
             toggle_btn.clicked.connect(lambda checked, u=uid, a=is_admin: self.toggle_admin_rights(u, a))
             self.table.setCellWidget(row, 4, toggle_btn)
-        
+            self.table.setRowHeight(row, 36)
         conn.close()
     
     def filter_users(self):
@@ -1198,22 +1286,46 @@ class EnhancedUserManagementDialog(QDialog):
         try:
             conn = sqlite3.connect('voting.db')
             cursor = conn.cursor()
-            
             # Меняем статус админа на противоположный
             new_status = 0 if current_status else 1
             cursor.execute("UPDATE users SET is_admin = ? WHERE id = ?", (new_status, user_id))
             conn.commit()
-            
             show_pretty_message(self, "Успех", "Права пользователя обновлены!")
             self.load_users()  # Перезагружаем таблицу
-            
         except sqlite3.Error as e:
             show_pretty_message(self, "Ошибка", f"Ошибка при обновлении прав: {str(e)}")
         finally:
             conn.close()
+    
+    def go_back(self):
+        self.close()
+
+def fill_it_votes():
+    conn = sqlite3.connect('voting.db')
+    cursor = conn.cursor()
+    # Проверяем, есть ли уже такие голосования
+    cursor.execute('SELECT title FROM votes')
+    existing_titles = set(row[0] for row in cursor.fetchall())
+    votes_to_add = [
+        ('Лучший язык программирования', 'Выберите язык, который вы считаете лучшим для разработки.', ['Python', 'JavaScript', 'C++', 'Java', 'Go', 'Rust']),
+        ('Любимая среда разработки (IDE)', 'Какой редактор или IDE вы предпочитаете?', ['PyCharm', 'VS Code', 'IntelliJ IDEA', 'Sublime Text', 'Vim', 'Eclipse']),
+        ('Лучший веб-фреймворк', 'Выберите веб-фреймворк, который вам больше всего нравится.', ['Django', 'Flask', 'FastAPI', 'Express', 'Spring', 'Ruby on Rails']),
+        ('Linux или Windows?', 'Какую ОС вы предпочитаете для работы?', ['Linux', 'Windows', 'macOS', 'BSD']),
+        ('Самый полезный IT-скилл', 'Какой навык в IT вы считаете самым важным?', ['Алгоритмы', 'Базы данных', 'DevOps', 'UI/UX', 'Безопасность', 'Soft Skills'])
+    ]
+    for title, desc, options in votes_to_add:
+        if title in existing_titles:
+            continue
+        cursor.execute('INSERT INTO votes (title, description) VALUES (?, ?)', (title, desc))
+        vid = cursor.lastrowid
+        for opt in options:
+            cursor.execute('INSERT INTO options (vote_id, option_text) VALUES (?, ?)', (vid, opt))
+    conn.commit()
+    conn.close()
 
 if __name__ == '__main__':
     init_database()
+    fill_it_votes()
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setStyleSheet("""
