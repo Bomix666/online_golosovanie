@@ -150,15 +150,3 @@
 **A:** Да, приложение кроссплатформенное — требуется только Python 3.8+ и PyQt6.
 
 ---
-
-## 📬 Контакты
-
-- Telegram: [@your_telegram](https://t.me/your_telegram)
-- Email: your.email@example.com
-- GitHub Issues: [github.com/yourusername/online_golosovanie/issues](https://github.com/yourusername/online_golosovanie/issues)
-
----
-
-## 📃 Лицензия
-
-MIT License 
